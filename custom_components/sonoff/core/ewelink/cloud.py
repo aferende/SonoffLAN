@@ -643,6 +643,11 @@ class XRegistryCloud(ResponseWaiter, XRegistryBase):
             elif "config" in data:
                 data["params"] = data.pop("config")
                 self.dispatcher_send(SIGNAL_UPDATE, data)
+            elif "error" in data:
+                # eWeLink acknowledges some updates with only the correlation
+                # fields and error=0. It is a successful acknowledgement, not
+                # an unknown cloud response.
+                pass
             else:
                 _LOGGER.warning("Unknown cloud response keys=%s", sorted(data))
 
