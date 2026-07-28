@@ -42,6 +42,9 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
                     "local": device.get("local"),
                     "localtype": device.get("localtype"),
                     "host": device.get("host"),
+                    "last_cloud_command": device.get("last_cloud_command"),
+                    "last_cloud_error": device.get("last_cloud_error"),
+                    "last_cloud_success": device.get("last_cloud_success"),
                 }
                 if "params" in device
                 else {
@@ -59,6 +62,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
         "config": config,
         "options": options,
         "errors": xutils.system_log_records(hass, DOMAIN),
+        "cloud_command_errors": list(registry.cloud_errors),
         "devices": devices,
     }
 

@@ -1,6 +1,6 @@
 {
   "domain": "sonoff",
-  "name": "Sonoff",
+  "name": "Sonoff LAN (aferende fork)",
   "codeowners": [
     "@AlexxIT"
   ],
@@ -9,9 +9,9 @@
     "http",
     "zeroconf"
   ],
-  "documentation": "https://github.com/AlexxIT/SonoffLAN",
+  "documentation": "https://github.com/aferende/SonoffLAN",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/AlexxIT/SonoffLAN/issues",
+  "issue_tracker": "https://github.com/aferende/SonoffLAN/issues",
   "requirements": [],
-  "version": "3.12.2"
+  "version": "3.12.2-aferende.1"
 }

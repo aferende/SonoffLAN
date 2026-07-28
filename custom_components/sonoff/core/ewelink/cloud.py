@@ -17,7 +17,13 @@ from aiohttp import (
     WSMessage,
 )
 
-from .base import SIGNAL_CONNECTED, SIGNAL_UPDATE, XDevice, XRegistryBase
+from .base import (
+    SIGNAL_CLOUD_ERROR,
+    SIGNAL_CONNECTED,
+    SIGNAL_UPDATE,
+    XDevice,
+    XRegistryBase,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -251,6 +257,20 @@ APP = ["R8Oq3y0eSZSYdKccHlrQzT1ACCOUT9Gv"]
 
 class AuthError(Exception):
     pass
+
+
+def cloud_error_event(data: dict) -> dict:
+    """Return the useful, non-sensitive part of a cloud error response.
+
+    eWeLink WebSocket errors often contain `apikey` and `uid`. They must not be
+    persisted in Home Assistant logs or diagnostics.
+    """
+    return {
+        "error": data.get("error"),
+        "deviceid": data.get("deviceid"),
+        "sequence": data.get("sequence"),
+        "action": data.get("action"),
+    }
 
 
 class ResponseWaiter:
@@ -607,17 +627,24 @@ class XRegistryCloud(ResponseWaiter, XRegistryBase):
             if "sequence" in data:
                 self._set_response(data["sequence"], data.get("error"))
 
+            if data.get("error", 0) not in (0, None):
+                event = cloud_error_event(data)
+                _LOGGER.warning(
+                    "Cloud command error code=%s device=%s sequence=%s",
+                    event["error"],
+                    event["deviceid"],
+                    event["sequence"],
+                )
+                self.dispatcher_send(SIGNAL_CLOUD_ERROR, event)
+
             # with params response on query, without - on update
-            if "params" in data:
+            elif "params" in data:
                 self.dispatcher_send(SIGNAL_UPDATE, data)
             elif "config" in data:
                 data["params"] = data.pop("config")
                 self.dispatcher_send(SIGNAL_UPDATE, data)
-            elif "error" in data:
-                if data["error"] != 0:
-                    _LOGGER.warning(f"Cloud ERROR: {data}")
             else:
-                _LOGGER.warning(f"UNKNOWN cloud msg: {data}")
+                _LOGGER.warning("Unknown cloud response keys=%s", sorted(data))
 
         elif data["action"] == "update":
             # new state from device
@@ -641,7 +668,9 @@ class XRegistryCloud(ResponseWaiter, XRegistryBase):
             pass
 
         else:
-            _LOGGER.warning(f"UNKNOWN cloud msg: {data}")
+            _LOGGER.warning(
+                "Unknown cloud action=%s keys=%s", data["action"], sorted(data)
+            )
 
 
 # https://coolkit-technologies.github.io/eWeLink-API/#/en/OAuth2.0?id=websocket-handshake
