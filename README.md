@@ -15,6 +15,7 @@ Home Assistant custom component for control [Sonoff](https://www.itead.cc/) devi
 - [Posting new issues](#posting-new-issues)
 - [Configuration UI](#configuration-ui)
   * [Mode](#mode)
+  * [Cloud recovery in this fork](#cloud-recovery-in-this-fork)
   * [Debug page](#debug-page)
   * [Homes](#homes)
 - [Configuration YAML](#configuration-yaml)
@@ -107,6 +108,17 @@ Each time the integration starts, a list of user devices is loaded from cloud an
 Devices in DIY mode can be used without ewelink credentials because their protocol unencrypted.
 
 It is **highly recommended** that you use `mode: auto` and do not use `mode: local` or DIY mode. Because the local protocol is not always stable and you will get a bad experience. Devices may sometimes disappear from the network or fail to respond to local requests. Also some POW and TH devices cannot update their sensors without a cloud connection.
+
+### Cloud recovery in this fork
+
+This fork adds opt-in recovery and diagnostics for eWeLink cloud command errors.
+
+- It records a redacted command context in integration diagnostics: command type, parameter names, latency, transport, parent model, bridge framework and available RSSI values. It never stores command values, eWeLink tokens or API keys in diagnostics.
+- For Zigbee children of a `ZBBridge-P`, framework 3.3.0 does not provide LAN control of the child. These commands therefore use the cloud transport even in `auto` mode.
+- In the integration options, **Retry an unconfirmed cloud on/off command after a 411 or 504 error** is disabled by default. When enabled, the integration waits two seconds, queries state once, and only if that query does not report the requested state sends one more command.
+- The retry is limited to an explicit single `switch: on` or `switch: off`. It never retries `toggle`, scenes, multi-parameter commands, or any other actuator command.
+
+This behaviour is intentionally conservative: an eWeLink 411/504 may be ambiguous, so automated retries are only safe for idempotent on/off commands. See [FORK_CHANGES.md](FORK_CHANGES.md) for the complete fork delta.
 
 ### Debug page
 

@@ -35,7 +35,7 @@ class XRegistry(XRegistryBase):
         self.cloud_pending: dict[str, dict] = {}
         self.cloud_error_tasks: dict[str, asyncio.Task] = {}
         self.cloud_errors: deque[dict] = deque(maxlen=COMMAND_ERRORS_MAXLEN)
-        # Opt-in: a 504 retry is safe only for explicit switch on/off commands.
+        # Opt-in: a retry is safe only for explicit switch on/off commands.
         self.cloud_retry = False
 
         self.cloud = XRegistryCloud(session)
@@ -215,6 +215,7 @@ class XRegistry(XRegistryBase):
         sequence: str = None,
         timeout: float = 5,
         force: bool = False,
+        origin: str = "command",
     ) -> str | None:
         """Send one cloud command, serialised per device and safely recorded.
 
@@ -236,6 +237,9 @@ class XRegistry(XRegistryBase):
             "safe_retry": self.is_safe_retry(params),
             "sequence": sequence,
             "timestamp": time.time(),
+            "started_monotonic": time.monotonic(),
+            "origin": origin,
+            **self.cloud_context(device),
         }
 
         lock = self.cloud_locks.setdefault(did, asyncio.Lock())
@@ -243,20 +247,49 @@ class XRegistry(XRegistryBase):
             # Keep parameter values in memory only while the command is in flight.
             self.cloud_pending[sequence] = command
             device["last_cloud_command"] = {
-                k: v for k, v in command.items() if k not in ("params", "safe_retry")
+                k: v
+                for k, v in command.items()
+                if k not in ("params", "safe_retry", "started_monotonic")
             }
             try:
                 ok = await self.cloud.send(device, params, sequence, timeout)
             finally:
                 self.cloud_pending.pop(sequence, None)
 
+        command["latency_ms"] = round(
+            (time.monotonic() - command["started_monotonic"]) * 1000
+        )
+        device["last_cloud_command"]["latency_ms"] = command["latency_ms"]
+
         if ok == "online":
             device["last_cloud_success"] = time.time()
 
         if ok == "online" and query and params:
             # The query is reconciliation, not a retry of the actuator command.
-            await self.send_cloud(device, query=False, timeout=0, force=force)
+            await self.send_cloud(
+                device, query=False, timeout=0, force=force, origin="post-update-query"
+            )
         return ok
+
+    @staticmethod
+    def cloud_context(device: XDevice) -> dict:
+        """Return useful transport context without command values or credentials."""
+        context = {"transport": "cloud"}
+        if rssi := device.get("params", {}).get("subDevRssi"):
+            context["device_rssi"] = rssi
+
+        if not (parent := device.get("parent")):
+            return context
+
+        context["parentid"] = parent.get("deviceid")
+        context["parent_model"] = parent.get("productModel")
+        if rssi := parent.get("params", {}).get("rssi"):
+            context["bridge_rssi"] = rssi
+        if version := parent.get("params", {}).get("hostVersion"):
+            context["bridge_framework"] = version
+        if parent.get("productModel") == "ZBBridge-P":
+            context["transport_reason"] = "zbbridge_child_lan_unsupported"
+        return context
 
     @staticmethod
     def is_safe_retry(params: dict | None) -> bool:
@@ -264,6 +297,14 @@ class XRegistry(XRegistryBase):
         return params is not None and params.get("switch") in ("on", "off") and len(
             params
         ) == 1
+
+    @staticmethod
+    def is_command_confirmed(device: XDevice, command: dict, sequence: str) -> bool:
+        """Confirm that the reconciliation response reports the requested state."""
+        params = command.get("params") or {}
+        return device.get("cloud_seq") == sequence and all(
+            device.get("params", {}).get(key) == value for key, value in params.items()
+        )
 
     def cloud_error(self, event: dict) -> None:
         """Record a redacted cloud error and schedule one status reconciliation."""
@@ -279,6 +320,18 @@ class XRegistry(XRegistryBase):
             "param_keys": command.get("param_keys", []),
             "timestamp": time.time(),
         }
+        for key in (
+            "origin",
+            "transport",
+            "transport_reason",
+            "device_rssi",
+            "bridge_rssi",
+            "bridge_framework",
+        ):
+            if command.get(key) is not None:
+                record[key] = command[key]
+        if started := command.get("started_monotonic"):
+            record["latency_ms"] = round((time.monotonic() - started) * 1000)
         if device and (parent := device.get("parent")):
             record["parentid"] = parent.get("deviceid")
             record["parent_model"] = parent.get("productModel")
@@ -309,19 +362,34 @@ class XRegistry(XRegistryBase):
         did = device["deviceid"]
         try:
             await asyncio.sleep(RECONCILE_DELAY)
-            result = await self.send_cloud(device, query=False, timeout=5, force=True)
-            record["reconcile"] = result
+            sequence = await self.sequence()
+            result = await self.send_cloud(
+                device,
+                query=False,
+                sequence=sequence,
+                timeout=5,
+                force=True,
+                origin="error-reconciliation",
+            )
+            confirmed = result == "online" and self.is_command_confirmed(
+                device, command, sequence
+            )
+            record["reconcile"] = {"result": result, "confirmed": confirmed}
 
             # An opt-in retry is limited to an unconfirmed, idempotent switch set.
             if (
-                result != "online"
-                and record["code"] == 504
+                not confirmed
+                and record["code"] in (411, 504)
                 and self.cloud_retry
                 and command.get("safe_retry")
             ):
                 await asyncio.sleep(RECONCILE_DELAY)
                 record["retry"] = await self.send_cloud(
-                    device, command["params"], query=True, force=True
+                    device,
+                    command["params"],
+                    query=True,
+                    force=True,
+                    origin="error-retry",
                 )
         except asyncio.CancelledError:
             raise
@@ -366,6 +434,8 @@ class XRegistry(XRegistryBase):
 
         if "sledOnline" in params:
             device["params"]["sledOnline"] = params["sledOnline"]
+
+        device["params"].update(params)
 
         self.dispatcher_send(did, params)
 
