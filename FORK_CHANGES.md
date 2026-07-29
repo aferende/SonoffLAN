@@ -2,6 +2,20 @@
 
 This repository tracks [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN) as its read-only upstream. Changes specific to this deployment are made only in this fork.
 
+## `3.12.2-aferende.5`
+
+### Reconciled cloud-response alerts
+
+- Treats a `411` or `504` response as ambiguous until a state query verifies the
+  outcome. A command that has actually reached the device is recorded as
+  recovered instead of being reported as a failed command.
+- For the opt-in safe retry, verifies the device state after the retry before
+  retaining an error. This avoids reporting a transient response error when the
+  requested state is already in effect.
+- Emits the existing `Cloud command error ...` warning only for an unconfirmed
+  outcome. Home Assistant/Telegram monitoring consequently alerts only for a
+  failure requiring attention, while debug logs retain the initial cloud reply.
+
 ## `3.12.2-aferende.4`
 
 ### Redundant cloud commands and safe diagnostics

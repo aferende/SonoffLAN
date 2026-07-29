@@ -16,6 +16,10 @@ from .cloud import XRegistryCloud
 from .local import XRegistryLocal
 
 _LOGGER = logging.getLogger(__name__)
+# Keep genuine cloud-command failures under the protocol logger. Existing log
+# filters and Home Assistant automations can therefore distinguish them from a
+# response that was successfully reconciled.
+_CLOUD_LOGGER = logging.getLogger(f"{__name__}.cloud")
 
 SIGNAL_ADD_ENTITIES = "add_entities"
 COMMAND_ERRORS_MAXLEN = 100
@@ -387,7 +391,7 @@ class XRegistry(XRegistryBase):
     async def reconcile_cloud_error(
         self, device: XDevice, record: dict, command: dict
     ) -> None:
-        """Verify state after an eWeLink 411/504 without replaying the command."""
+        """Verify an ambiguous eWeLink response before reporting it as a failure."""
         did = device["deviceid"]
         try:
             await asyncio.sleep(RECONCILE_DELAY)
@@ -412,14 +416,51 @@ class XRegistry(XRegistryBase):
                 and self.cloud_retry
                 and command.get("safe_retry")
             ):
-                await asyncio.sleep(RECONCILE_DELAY)
-                record["retry"] = await self.send_cloud(
+                retry_result = await self.send_cloud(
                     device,
                     command["params"],
-                    query=True,
+                    query=False,
                     force=True,
                     origin="error-retry",
                 )
+                await asyncio.sleep(RECONCILE_DELAY)
+                retry_sequence = await self.sequence()
+                verify_result = await self.send_cloud(
+                    device,
+                    query=False,
+                    sequence=retry_sequence,
+                    timeout=5,
+                    force=True,
+                    origin="error-retry-verification",
+                )
+                confirmed = verify_result == "online" and self.is_command_confirmed(
+                    device, command, retry_sequence
+                )
+                record["retry"] = {
+                    "result": retry_result,
+                    "verification": verify_result,
+                    "confirmed": confirmed,
+                }
+
+            if confirmed:
+                record["outcome"] = "recovered"
+                _LOGGER.info(
+                    "Cloud command response recovered code=%s device=%s name=%s sequence=%s",
+                    record["code"],
+                    did,
+                    device.get("name", "unknown"),
+                    record["sequence"],
+                )
+                return
+
+            record["outcome"] = "unconfirmed"
+            _CLOUD_LOGGER.warning(
+                "Cloud command error code=%s device=%s name=%s sequence=%s",
+                record["code"],
+                did,
+                device.get("name", "unknown"),
+                record["sequence"],
+            )
         except asyncio.CancelledError:
             raise
         except Exception as err:
