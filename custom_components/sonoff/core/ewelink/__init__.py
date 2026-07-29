@@ -246,6 +246,13 @@ class XRegistry(XRegistryBase):
 
         lock = self.cloud_locks.setdefault(did, asyncio.Lock())
         async with lock:
+            # Re-check while holding the per-device lock. A previous command may
+            # have completed while this one was waiting, making a second on/off
+            # request redundant and a potential source of cloud 411 responses.
+            if self.is_redundant_switch_command(device, params):
+                _LOGGER.debug("Skip redundant cloud command for %s", did)
+                return "online"
+
             # Keep parameter values in memory only while the command is in flight.
             self.cloud_pending[sequence] = command
             device["last_cloud_command"] = {
@@ -258,6 +265,24 @@ class XRegistry(XRegistryBase):
             finally:
                 self.cloud_pending.pop(sequence, None)
 
+            if ok == "online" and query and params:
+                # Queue the state query before the next command for this device.
+                # This keeps the command order deterministic without replaying an
+                # actuator command and improves the redundant-command check above.
+                query_sequence = await self.sequence()
+                self.cloud_pending[query_sequence] = {
+                    "action": "query",
+                    "param_keys": [],
+                    "sequence": query_sequence,
+                    "started_monotonic": time.monotonic(),
+                    "origin": "post-update-query",
+                    **self.cloud_context(device),
+                }
+                try:
+                    await self.cloud.send(device, sequence=query_sequence, timeout=0)
+                finally:
+                    self.cloud_pending.pop(query_sequence, None)
+
         command["latency_ms"] = round(
             (time.monotonic() - command["started_monotonic"]) * 1000
         )
@@ -266,11 +291,6 @@ class XRegistry(XRegistryBase):
         if ok == "online":
             device["last_cloud_success"] = time.time()
 
-        if ok == "online" and query and params:
-            # The query is reconciliation, not a retry of the actuator command.
-            await self.send_cloud(
-                device, query=False, timeout=0, force=force, origin="post-update-query"
-            )
         return ok
 
     @staticmethod
@@ -299,6 +319,13 @@ class XRegistry(XRegistryBase):
         return params is not None and params.get("switch") in ("on", "off") and len(
             params
         ) == 1
+
+    @staticmethod
+    def is_redundant_switch_command(device: XDevice, params: dict | None) -> bool:
+        """Return true only for a known, already satisfied switch state."""
+        return XRegistry.is_safe_retry(params) and (
+            device.get("params", {}).get("switch") == params["switch"]
+        )
 
     @staticmethod
     def is_command_confirmed(device: XDevice, command: dict, sequence: str) -> bool:

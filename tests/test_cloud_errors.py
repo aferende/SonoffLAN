@@ -56,6 +56,17 @@ def test_only_explicit_switch_values_are_safe_to_retry():
     assert not XRegistry.is_safe_retry(None)
 
 
+def test_known_switch_state_skips_only_a_redundant_command():
+    device = {"params": {"switch": "off"}}
+
+    assert XRegistry.is_redundant_switch_command(device, {"switch": "off"})
+    assert not XRegistry.is_redundant_switch_command(device, {"switch": "on"})
+    assert not XRegistry.is_redundant_switch_command(device, {"switch": "toggle"})
+    assert not XRegistry.is_redundant_switch_command(
+        device, {"switch": "off", "brightness": 50}
+    )
+
+
 def test_reconciliation_requires_the_matching_response_and_state():
     command = {"params": {"switch": "on"}}
     device = {"cloud_seq": "query-1", "params": {"switch": "on"}}

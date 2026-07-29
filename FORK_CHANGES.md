@@ -2,6 +2,21 @@
 
 This repository tracks [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN) as its read-only upstream. Changes specific to this deployment are made only in this fork.
 
+## `3.12.2-aferende.4`
+
+### Redundant cloud commands and safe diagnostics
+
+- Re-checks an explicit `switch: on` or `switch: off` command while holding the
+  per-device cloud lock and skips it when the known state already matches.
+- Queues the non-actuating post-command state query before releasing that lock,
+  reducing command overlap for the same cloud-only device.
+- Explicitly redacts app credentials, cloud credentials, device/bridge IDs,
+  sequence values, device names and local network addresses from exported
+  diagnostics and from diagnostic copies of system-log messages.
+- Retains only non-identifying troubleshooting context in diagnostics: command
+  type and parameter names, error code, model, firmware, RSSI, latency and
+  reconciliation result.
+
 ## `3.12.2-aferende.3`
 
 ### Cloud alert readability
