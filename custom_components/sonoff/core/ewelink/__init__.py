@@ -39,6 +39,8 @@ class XRegistry(XRegistryBase):
         self.cloud_retry = False
 
         self.cloud = XRegistryCloud(session)
+        # Let cloud protocol logs resolve a device ID to its local friendly name.
+        self.cloud.devices = self.devices
         self.cloud.dispatcher_connect(SIGNAL_CONNECTED, self.cloud_connected)
         self.cloud.dispatcher_connect(SIGNAL_CLOUD_ERROR, self.cloud_error)
         self.cloud.dispatcher_connect(SIGNAL_UPDATE, self.cloud_update)

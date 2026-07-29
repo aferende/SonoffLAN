@@ -2,6 +2,14 @@
 
 This repository tracks [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN) as its read-only upstream. Changes specific to this deployment are made only in this fork.
 
+## `3.12.2-aferende.3`
+
+### Cloud alert readability
+
+- Adds the resolved Sonoff device name to each cloud-command error log. Existing
+  `system_log_event`/Telegram monitoring therefore reports both the `deviceid`
+  and the human-readable device name for errors `411` and `504`.
+
 ## `3.12.2-aferende.2`
 
 ### Cloud command recovery and diagnostics

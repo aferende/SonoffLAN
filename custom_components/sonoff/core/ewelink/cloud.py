@@ -629,10 +629,12 @@ class XRegistryCloud(ResponseWaiter, XRegistryBase):
 
             if data.get("error", 0) not in (0, None):
                 event = cloud_error_event(data)
+                name = self.devices.get(event["deviceid"], {}).get("name")
                 _LOGGER.warning(
-                    "Cloud command error code=%s device=%s sequence=%s",
+                    "Cloud command error code=%s device=%s name=%s sequence=%s",
                     event["error"],
                     event["deviceid"],
+                    name or "unknown",
                     event["sequence"],
                 )
                 self.dispatcher_send(SIGNAL_CLOUD_ERROR, event)
