@@ -2,6 +2,19 @@
 
 This repository tracks [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN) as its read-only upstream. Changes specific to this deployment are made only in this fork.
 
+## `3.12.2-aferende.6`
+
+### Bounded logging and cloud-error coalescing
+
+- Keeps the optional Sonoff debug page in bounded memory while preventing
+  high-frequency protocol traces from propagating to Home Assistant raw logs.
+  Warnings and errors remain visible through the normal Home Assistant logger.
+- Coalesces repeated, unconfirmed `411`/`504` warnings per device and error code
+  for 15 minutes. The diagnostic history remains bounded and complete, while
+  system-log events and recorder writes contain only actionable alerts.
+- The integration debug option is intended only for temporary troubleshooting;
+  leave it disabled during normal operation.
+
 ## `3.12.2-aferende.5`
 
 ### Reconciled cloud-response alerts

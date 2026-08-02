@@ -23,6 +23,8 @@ _CLOUD_LOGGER = logging.getLogger(f"{__name__}.cloud")
 
 SIGNAL_ADD_ENTITIES = "add_entities"
 COMMAND_ERRORS_MAXLEN = 100
+COMMAND_WARNING_MAXLEN = 256
+COMMAND_WARNING_INTERVAL = 15 * 60
 RECONCILE_DELAY = 2
 LOCAL_TTL = 60
 
@@ -39,6 +41,7 @@ class XRegistry(XRegistryBase):
         self.cloud_pending: dict[str, dict] = {}
         self.cloud_error_tasks: dict[str, asyncio.Task] = {}
         self.cloud_errors: deque[dict] = deque(maxlen=COMMAND_ERRORS_MAXLEN)
+        self.cloud_error_warnings: dict[tuple[str, int], dict] = {}
         # Opt-in: a retry is safe only for explicit switch on/off commands.
         self.cloud_retry = False
 
@@ -104,6 +107,7 @@ class XRegistry(XRegistryBase):
         self.cloud_error_tasks.clear()
         self.cloud_pending.clear()
         self.cloud_locks.clear()
+        self.cloud_error_warnings.clear()
 
         await self.cloud.stop()
         await self.local.stop()
@@ -388,6 +392,43 @@ class XRegistry(XRegistryBase):
             self.reconcile_cloud_error(device, record, command)
         )
 
+    def log_unconfirmed_cloud_error(
+        self, device: XDevice, record: dict, now: float | None = None
+    ) -> None:
+        """Log one actionable cloud failure per device/code interval.
+
+        Cloud errors can arrive in bursts while a bridge reconnects. Preserve the
+        complete bounded diagnostic history, but coalesce repeated warnings so
+        Home Assistant's system log and recorder receive only actionable data.
+        """
+        now = time.time() if now is None else now
+        key = (device["deviceid"], record["code"])
+        previous = self.cloud_error_warnings.get(key)
+
+        if previous and now - previous["timestamp"] < COMMAND_WARNING_INTERVAL:
+            previous["suppressed"] += 1
+            record["warning_suppressed"] = True
+            return
+
+        if len(self.cloud_error_warnings) >= COMMAND_WARNING_MAXLEN and not previous:
+            oldest = min(
+                self.cloud_error_warnings,
+                key=lambda item: self.cloud_error_warnings[item]["timestamp"],
+            )
+            self.cloud_error_warnings.pop(oldest)
+
+        suppressed = previous["suppressed"] if previous else 0
+        self.cloud_error_warnings[key] = {"timestamp": now, "suppressed": 0}
+        record["warning_suppressed"] = suppressed
+        _CLOUD_LOGGER.warning(
+            "Cloud command error code=%s device=%s name=%s sequence=%s suppressed=%s",
+            record["code"],
+            device["deviceid"],
+            device.get("name", "unknown"),
+            record["sequence"],
+            suppressed,
+        )
+
     async def reconcile_cloud_error(
         self, device: XDevice, record: dict, command: dict
     ) -> None:
@@ -454,13 +495,7 @@ class XRegistry(XRegistryBase):
                 return
 
             record["outcome"] = "unconfirmed"
-            _CLOUD_LOGGER.warning(
-                "Cloud command error code=%s device=%s name=%s sequence=%s",
-                record["code"],
-                did,
-                device.get("name", "unknown"),
-                record["sequence"],
-            )
+            self.log_unconfirmed_cloud_error(device, record)
         except asyncio.CancelledError:
             raise
         except Exception as err:
