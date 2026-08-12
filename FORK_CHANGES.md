@@ -2,6 +2,18 @@
 
 This repository tracks [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN) as its read-only upstream. Changes specific to this deployment are made only in this fork.
 
+## `3.12.2-aferende.7`
+
+### Home Assistant concentration-unit compatibility
+
+- Replaces the deprecated concentration constants with `UnitOfDensity` and
+  `UnitOfRatio` on Home Assistant 2026.7 and later, removing the deprecation
+  warnings scheduled to become errors in Home Assistant 2027.8.
+- Retains compatibility with the fork's supported Home Assistant 2023.2+
+  versions through a legacy-only fallback; current Home Assistant versions do
+  not import the deprecated constants.
+- Matches the focused upstream fix proposed in AlexxIT/SonoffLAN PR #1850.
+
 ## `3.12.2-aferende.6`
 
 ### Bounded logging and cloud-error coalescing
