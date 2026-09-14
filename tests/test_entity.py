@@ -1,30 +1,33 @@
 import asyncio
 import time
+from datetime import timedelta
+from types import SimpleNamespace
 from typing import Union
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.components.fan import FanEntity, FanEntityFeature
-from homeassistant.components.light import (
-    ColorMode,
-    LightEntity,
-)
+from homeassistant.components.light import ColorMode, LightEntity
+from homeassistant.components.script import ATTR_LAST_TRIGGERED
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.components.script import ATTR_LAST_TRIGGERED
 from homeassistant.const import (
-    CONCENTRATION_PARTS_PER_MILLION,
+    LIGHT_LUX,
     MAJOR_VERSION,
     MINOR_VERSION,
     STATE_ON,
     UnitOfEnergy,
+    UnitOfTime,
     UnitOfVolume,
 )
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.util import dt
 
 from custom_components.sonoff import CONFIG_SCHEMA, remote
-from custom_components.sonoff.binary_sensor import XBinarySensor, XHumanSensor, \
-    XRemoteSensor
+from custom_components.sonoff.binary_sensor import (
+    XBinarySensor,
+    XHumanSensor,
+    XRemoteSensor,
+)
 from custom_components.sonoff.button import XRemoteButton, XT5Effect
 from custom_components.sonoff.climate import XClimateNS, XThermostat
 from custom_components.sonoff.core import devices
@@ -51,9 +54,10 @@ from custom_components.sonoff.light import (
     XT5EffectStatus,
     XT5Light,
 )
-from custom_components.sonoff.number import XNumber, XPulseWidth
+from custom_components.sonoff.number import DEVICE_DURATION, XNumber, XPulseWidth
 from custom_components.sonoff.select import XSelectStartup
 from custom_components.sonoff.sensor import (
+    CONCENTRATION_PARTS_PER_MILLION,
     XButtonKey,
     XButtonLocalKey,
     XCloudEnergyDualR3,
@@ -73,9 +77,6 @@ from custom_components.sonoff.switch import (
     XZigbeeSwitches,
 )
 from . import DEVICEID, DummyRegistry, init, save_to
-
-from datetime import timedelta
-from types import SimpleNamespace
 
 
 def get_entitites(device: Union[dict, list], config: dict = None) -> list:
@@ -565,6 +566,16 @@ def test_sonoff_pow():
     assert power.state == 12.34
     power: XSensor = next(e for e in entities if e.uid == "current")
     assert power.state == 1.23
+
+    pulse: XToggle = next(e for e in entities if e.uid == "pulse")
+    assert pulse.is_on is False
+    assert pulse.entity_registry_enabled_default is False
+
+    pulse_width = next(e for e in entities if isinstance(e, XPulseWidth))
+    assert pulse_width.native_value == 0.5
+    assert pulse_width.device_class == DEVICE_DURATION
+    assert pulse_width.native_unit_of_measurement == UnitOfTime.SECONDS
+    assert pulse_width.entity_registry_enabled_default is False
 
 
 def test_rfbridge():
@@ -1975,7 +1986,7 @@ def test_issue1235():
     power: XSensor = next(e for e in entities if e.uid == "power")
     assert power.device_class is None
     assert power.native_unit_of_measurement is None
-    assert power.native_value is "off"
+    assert power.native_value == "off"
     assert power.state_class is None
 
 
@@ -2790,5 +2801,7 @@ def test_human_7055():
     human: XHumanSensor = next(e for e in entities if e.uid == "occupancy")
     assert human.state == "off"
 
-    sensor: XSensor = next(e for e in entities if e.uid == "illumination")
+    sensor: XSensor = next(e for e in entities if e.uid == "illuminance")
     assert sensor.state == 361
+    assert sensor.device_class == SensorDeviceClass.ILLUMINANCE
+    assert sensor.native_unit_of_measurement == LIGHT_LUX
