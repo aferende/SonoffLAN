@@ -1788,7 +1788,7 @@ def test_minir4():
     action: XButtonKey = next(e for e in entities if e.uid == "action")
     assert action.state == ""
 
-    action.internal_update({"key": 0})
+    action.internal_update({"key": 0, "trigTime": "1762678199274"})
     assert action.state == "single"
 
 
@@ -1823,10 +1823,10 @@ def test_t5():
     action: XT5Action = next(e for e in entities if isinstance(e, XT5Action))
     assert action.state == ""
 
-    action.internal_update(
-        {"switches": [{"switch": "on", "outlet": 0}], "triggerType": 2}
-    )
-    assert action.state == "touch"
+    # action.internal_update(
+    #     {"switches": [{"switch": "on", "outlet": 0}], "triggerType": 2}
+    # )
+    # assert action.state == "touch"
 
     action.internal_update({"slide": 2})
     assert action.state == "slide_2"
@@ -2421,72 +2421,6 @@ def test_zb2gs():
     assert button.state == "button_1_single"
 
 
-def test_m5_matter():
-    # https://github.com/AlexxIT/SonoffLAN/issues/1769
-    entities = get_entitites(
-        {
-            "extra": {"uiid": 162},
-            "params": {"localKeyPass": {"key": 0, "outlet": 0}},
-        }
-    )
-
-    button: XButtonLocalKey = next(e for e in entities if e.uid == "action")
-    assert button.state == ""
-
-    # this is local event without trigger
-    button.ewelink.local.dispatcher_send(
-        SIGNAL_UPDATE,
-        {
-            "deviceid": DEVICEID,
-            "params": {"triggerType": 0, "localKeyPass": {"key": 0, "outlet": 0}},
-        },
-    )
-    assert button.state == ""
-
-    # this is cloud event with trigger
-    button.ewelink.cloud.dispatcher_send(
-        SIGNAL_UPDATE,
-        {"deviceid": DEVICEID, "params": {"localKeyPass": {"key": 0, "outlet": 0}}},
-    )
-    assert button.state == "button_1_single"
-
-    # this is first local event with trigger (device discovery)
-    setattr(button, "_attr_native_value", "")  # reset state
-    button.ewelink.local.dispatcher_send(
-        SIGNAL_UPDATE,
-        {
-            "deviceid": DEVICEID,
-            "params": {"triggerType": 11, "localKeyPass": {"key": 0, "outlet": 1}},
-            "seq": 1,
-        },
-    )
-    assert button.state == ""
-
-    # this is second local event with trigger
-    setattr(button, "_attr_native_value", "")  # reset state
-    button.ewelink.local.dispatcher_send(
-        SIGNAL_UPDATE,
-        {
-            "deviceid": DEVICEID,
-            "params": {"triggerType": 11, "localKeyPass": {"key": 0, "outlet": 1}},
-            "seq": 2,
-        },
-    )
-    assert button.state == "button_2_single"
-
-    # this is local event with same sequence
-    setattr(button, "_attr_native_value", "")  # reset state
-    button.ewelink.local.dispatcher_send(
-        SIGNAL_UPDATE,
-        {
-            "deviceid": DEVICEID,
-            "params": {"triggerType": 11, "localKeyPass": {"key": 0, "outlet": 2}},
-            "seq": 2,
-        },
-    )
-    assert button.state == ""
-
-
 def test_powct():
     entities = get_entitites({"extra": {"uiid": 190}, "params": {"supplyPower": 0}})
     assert any(e.uid.endswith("supply") for e in entities if e.uid)
@@ -2805,3 +2739,102 @@ def test_human_7055():
     assert sensor.state == 361
     assert sensor.device_class == SensorDeviceClass.ILLUMINANCE
     assert sensor.native_unit_of_measurement == LIGHT_LUX
+
+
+def test_hydro_duo():
+    # https://github.com/AlexxIT/SonoffLAN/issues/1859
+    params = {
+        "availablePlanCount": 6,
+        "fwVersion": "1.1.0",
+        "isSupportVolume": True,
+        "battery": 100,
+        "supportPowConfig": 1,
+        "errorDetail": {
+            "waterShortage": False,
+            "waterLeakage": False,
+            "frostProtection": False,
+            "failsafe": False,
+            "waterShortage_1": False,
+            "failsafe_1": False,
+        },
+        "controlMode": "auto",
+        "switch_00": False,
+        "switch_01": False,
+        "childLock": False,
+        "subDevRssi": -69,
+        "subDeviceManufacturer": "SONOFF",
+        "defaultManualMode": "time",
+        "manualDuration": 10,
+        "manualRainDelayTime": "0",
+        "frostProtection": 5,
+        "waterLeakage": 1,
+        "waterShortage": 5,
+        "waterShortageClose": True,
+        "adjustByHumidity": {"value": 40, "enable": False},
+        "adjustByRain": {"value": 10, "enable": False},
+        "adjustByTemp": {"value": 0, "valueGal": 1, "enable": False},
+        "adjustBySeason": "0a0a0a0a0a0a0a0a0a0a0a0a",
+        "currentRecord_0": {
+            "startTime": "842359254",
+            "type": "time",
+            "endTime": "842359852",
+            "remainVolume": 65523,
+            "remainVolumeGal": 17309,
+            "remainVolumeImGal": 14413,
+        },
+        "isRunning": False,
+        "runningOutlet": 1,
+        "lastRecord_1": {
+            "startTime": "842375701",
+            "endTime": "842375761",
+            "volume": 30,
+            "volumeGal": 8,
+            "volumeImGal": 7,
+        },
+        "currentRecord_1": {
+            "startTime": "842375701",
+            "type": "time",
+            "endTime": "842375760",
+            "remainVolume": 65511,
+            "remainVolumeGal": 17306,
+            "remainVolumeImGal": 14410,
+        },
+        "subDevRssiSetting": {"active": 60, "duration": 5},
+        "volumeUsageHour": 0,
+        "durationUsage_0": 0,
+        "durationUsage_1": 0,
+        "volumeUnit": "l",
+        "tempUnit": 0,
+        "todayWaterUsage": 141,
+        "todayWaterUsageGal": 36,
+        "totalTimeUsage_0": 2,
+        "totalTimeUsage_1": 5,
+        "isImperialGal": True,
+        "lastRecord_0": {
+            "startTime": "842359254",
+            "endTime": "842359352",
+            "volume": 14,
+            "volumeGal": 4,
+            "volumeImGal": 3,
+        },
+        "nextRecord_1": "842429700",
+    }
+    entities = get_entitites({"extra": {"uiid": 7048}, "params": params})
+
+    switch: SwitchEntity = next(e for e in entities if e.uid == "a")
+    assert switch.state == "off"
+    assert switch.entity_id == "sonoff.sonoff_1000123abc_a"
+
+    sensor: XSensor = next(e for e in entities if e.uid == "water_today")
+    assert sensor.state == 141
+    assert sensor.device_class == SensorDeviceClass.WATER
+    assert sensor.native_unit_of_measurement == UnitOfVolume.LITERS
+
+    sensor: XSensor = next(e for e in entities if e.uid == "water_last_a")
+    assert sensor.state == 14
+    assert sensor.device_class == SensorDeviceClass.WATER
+    assert sensor.native_unit_of_measurement == UnitOfVolume.LITERS
+
+    sensor: XSensor = next(e for e in entities if e.uid == "time_total_a")
+    assert sensor.state == 2
+    assert sensor.native_unit_of_measurement == UnitOfTime.MINUTES

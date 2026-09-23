@@ -4,6 +4,9 @@
 
 Home Assistant custom component for control [Sonoff](https://www.itead.cc/) devices with [eWeLink](https://www.ewelink.cc/en/) (original) firmware over LAN and/or Cloud.
 
+> [!NOTE]
+> This is the `aferende/SonoffLAN` fork, synchronized with [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN) **v3.13.1**. It keeps the fork's conservative cloud-command recovery and redacted diagnostics; see [FORK_CHANGES.md](FORK_CHANGES.md) for the maintained delta.
+
 > [!CAUTION]
 > Starting in 2026 - power, current, and voltage sensors will no longer be updated via the cloud connection. These updates placed a heavy load on the eWeLink cloud. As a result, they were blocked by the cloud.
 
@@ -65,9 +68,9 @@ Thanks to [@michthom](https://github.com/michthom) and [@EpicLPer](https://githu
 
 ## Installation
 
-[![](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=AlexxIT&repository=SonoffLAN&category=Integration)
+[![](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=aferende&repository=SonoffLAN&category=Integration)
 
-Via [HACS](https://hacs.xyz/) or manually copy `sonoff` folder from [latest release](https://github.com/AlexxIT/SonoffLAN/releases/latest) to `custom_components` folder in your config folder.
+Via [HACS](https://hacs.xyz/) or manually copy the `sonoff` folder from the [latest fork release](https://github.com/aferende/SonoffLAN/releases/latest) to the `custom_components` folder in your Home Assistant configuration.
 
 ## Configuration
 
@@ -82,7 +85,7 @@ Before posting new issue:
 1. Check the number of online devices on the [System Health page](https://my.home-assistant.io/redirect/system_health)
 2. Check warning and errors on the [Logs page](https://my.home-assistant.io/redirect/logs/)
 3. Check **debug logs** on the [Debug page](#debug-page) (must be enabled in integration options)
-4. Check **open and closed** [issues](https://github.com/AlexxIT/SonoffLAN/issues?q=is%3Aissue)
+4. Check **open and closed** [fork issues](https://github.com/aferende/SonoffLAN/issues?q=is%3Aissue); report upstream defects to [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN/issues)
 5. Share integration [diagnostics](https://www.home-assistant.io/integrations/diagnostics/):
    - All devices: Settings > [Integrations](https://my.home-assistant.io/redirect/integrations/) > **Sonoff** > 3 dots > Download diagnostics
    - One device: Settings > [Devices](https://my.home-assistant.io/redirect/devices/) > Device > Download diagnostics
