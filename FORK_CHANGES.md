@@ -2,6 +2,16 @@
 
 This repository tracks [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN) as its read-only upstream. Changes specific to this deployment are made only in this fork.
 
+## `3.13.2`
+
+- Merges AlexxIT/SonoffLAN v3.13.2 (35967de), including new device support,
+  local T6 getState handling, MINIR4M button fixes and via_device_id compatibility.
+- Preserves cloud command deduplication, per-device serialization, delayed
+  reconciliation, optional safe on/off retry and redacted diagnostics.
+- Preserves bounded debug logging and coalesced unconfirmed cloud warnings.
+- Uses the upstream version number; the manifest name and repository links
+  identify this build as the aferende fork.
+
 ## `3.12.2-aferende.4`
 
 ### Redundant cloud commands and safe diagnostics

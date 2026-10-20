@@ -5,7 +5,7 @@
 Home Assistant custom component for control [Sonoff](https://www.itead.cc/) devices with [eWeLink](https://www.ewelink.cc/en/) (original) firmware over LAN and/or Cloud.
 
 > [!NOTE]
-> This is the `aferende/SonoffLAN` fork, synchronized with [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN) **v3.13.1**. It keeps the fork's conservative cloud-command recovery and redacted diagnostics; see [FORK_CHANGES.md](FORK_CHANGES.md) for the maintained delta.
+> This is the `aferende/SonoffLAN` fork, synchronized with [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN) **v3.13.2**. It keeps the fork's conservative cloud-command recovery and redacted diagnostics; see [FORK_CHANGES.md](FORK_CHANGES.md) for the maintained delta.
 
 > [!CAUTION]
 > Starting in 2026 - power, current, and voltage sensors will no longer be updated via the cloud connection. These updates placed a heavy load on the eWeLink cloud. As a result, they were blocked by the cloud.

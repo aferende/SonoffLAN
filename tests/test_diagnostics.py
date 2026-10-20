@@ -47,7 +47,10 @@ def test_diagnostics_does_not_mutate_config():
 
         assert result["config"]["username"] == "***"
         assert result["config"]["password"] == "***"
-        assert result["config"]["devices"]["1000123456"]["devicekey"] == "***"
+        # The fork also removes identifying mapping keys from exported config.
+        assert result["config"]["devices"] == {"count": 1}
+        assert "1000123456" not in repr(result["config"])
+        assert "real-device-key" not in repr(result["config"])
 
         assert XRegistry.config["username"] == "user@example.com"
         assert XRegistry.config["password"] == "secret-password"
